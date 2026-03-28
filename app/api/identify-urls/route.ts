@@ -11,19 +11,19 @@ export async function POST(req: NextRequest) {
       reason: "DuckDuckGo search for Reddit discussions about the product",
     },
     {
-      url: `https://duckduckgo.com/?q=${encodeURIComponent(product + " review site:youtube.com")}`,
+      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(product + " review")}`,
       source_type: "youtube",
-      reason: "DuckDuckGo search for YouTube reviews and comments",
+      reason: "YouTube search for video reviews and comments",
     },
     {
-      url: `https://duckduckgo.com/?q=${encodeURIComponent(product + " review site:amazon.com")}`,
+      url: `https://www.amazon.com/s?k=${encodeURIComponent(product)}`,
       source_type: "amazon",
-      reason: "DuckDuckGo search for Amazon customer reviews",
+      reason: "Amazon search for customer reviews",
     },
     {
-      url: `https://duckduckgo.com/?q=${encodeURIComponent(product + " review site:trustpilot.com")}`,
+      url: `https://www.trustpilot.com/search?query=${encodeURIComponent(product)}`,
       source_type: "trustpilot",
-      reason: "DuckDuckGo search for Trustpilot reviews",
+      reason: "Trustpilot search for user reviews",
     },
   ];
 
