@@ -52,11 +52,14 @@ export default function SourceCard({ source }: Props) {
 
       {!failed && (
         <ul className="space-y-1">
-          {source.reviews.slice(0, 3).map((review, i) => (
-            <li key={i} className="text-xs text-gray-400 line-clamp-2">
-              "{review}"
-            </li>
-          ))}
+          {source.reviews.slice(0, 3).map((review, i) => {
+            const text = typeof review === "string" ? review : (review as Record<string, string>).text ?? JSON.stringify(review);
+            return (
+              <li key={i} className="text-xs text-gray-400 line-clamp-2">
+                "{text}"
+              </li>
+            );
+          })}
           {source.reviews.length > 3 && (
             <li className="text-xs text-gray-600">+{source.reviews.length - 3} more</li>
           )}
