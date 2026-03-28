@@ -6,7 +6,10 @@ export async function POST(req: NextRequest) {
     await req.json();
 
   // Collect all reviews across sources
-  const allReviews = sources.flatMap((s) => s.reviews).filter(Boolean);
+  const allReviews = sources
+    .flatMap((s) => s.reviews)
+    .map((review) => review.text)
+    .filter(Boolean);
 
   // Simple keyword-based sentiment analysis (no AI needed)
   const positiveWords = [

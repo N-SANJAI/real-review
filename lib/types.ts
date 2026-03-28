@@ -7,9 +7,16 @@ export interface TargetUrl {
 export interface ScrapedSource {
   url: string;
   source_type: string;
-  reviews: string[];
+  reviews: ReviewEntry[];
   credibility_notes: string;
   raw_result: unknown;
+}
+
+export interface ReviewEntry {
+  text: string;
+  rating?: number | null;
+  date?: string | null;
+  score?: number | null;
 }
 
 export interface ReviewReport {
