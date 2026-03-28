@@ -14,7 +14,30 @@ interface AgentState {
   status: "queued" | "running" | "done" | "failed";
   streaming_url?: string;
   progress?: string;
+  progress_percent?: number;
   source?: ScrapedSource;
+}
+
+function estimateProgressFromLog(message: string, previousPercent = 8): number {
+  const text = message.toLowerCase();
+  const milestones: Array<{ pattern: RegExp; percent: number }> = [
+    { pattern: /launch|start|navigat|open|goto/, percent: 18 },
+    { pattern: /search|result|find/, percent: 30 },
+    { pattern: /click|follow|expand|scroll/, percent: 44 },
+    { pattern: /comment|review|thread|post|tweet|read|extract/, percent: 62 },
+    { pattern: /parse|analy|collect|summar|json|return/, percent: 80 },
+    { pattern: /finish|completed|complete|done|success/, percent: 94 },
+  ];
+
+  const milestonePercent = milestones.reduce((max, item) => {
+    return item.pattern.test(text) ? Math.max(max, item.percent) : max;
+  }, 0);
+
+  if (milestonePercent === 0) {
+    return Math.min(90, Math.max(previousPercent + 3, 10));
+  }
+
+  return Math.min(94, Math.max(previousPercent, milestonePercent));
 }
 
 function AgentCard({ agent }: { agent: AgentState }) {
@@ -33,7 +56,7 @@ function AgentCard({ agent }: { agent: AgentState }) {
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white/90 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
       <div className="flex">
-        <TinyFishProgressBar status={agent.status} />
+        <TinyFishProgressBar status={agent.status} progressPercent={agent.progress_percent} />
         <div className="flex-1">
           <div className="flex items-center gap-3 px-4 py-3">
             <span className={`rounded px-2 py-0.5 text-xs font-medium uppercase ${badgeColor[agent.source_type] ?? badgeColor.other}`}>
@@ -104,16 +127,25 @@ function AgentCard({ agent }: { agent: AgentState }) {
   );
 }
 
-function TinyFishProgressBar({ status }: { status: AgentState["status"] }) {
+function TinyFishProgressBar({
+  status,
+  progressPercent,
+}: {
+  status: AgentState["status"];
+  progressPercent?: number;
+}) {
   const running = status === "running";
   const done = status === "done";
+  const failed = status === "failed";
+  const fillPercent = done || failed ? 100 : running ? Math.max(8, progressPercent ?? 8) : 0;
 
   return (
     <div className="tinyfish-bar-container relative m-2 mr-0 w-6 overflow-hidden rounded-full border border-cyan-200/80 bg-cyan-50/70 dark:border-cyan-900/80 dark:bg-slate-950">
       <div
         className={`tinyfish-water-layer absolute inset-x-0 bottom-0 ${
-          done ? "h-full" : running ? "tinyfish-water-fill" : "h-0"
+          done ? "tinyfish-water-done" : failed ? "tinyfish-water-failed" : ""
         }`}
+        style={{ height: `${fillPercent}%` }}
       />
       {running && (
         <div className="pointer-events-none absolute inset-0">
@@ -123,6 +155,7 @@ function TinyFishProgressBar({ status }: { status: AgentState["status"] }) {
         </div>
       )}
       {done && <div className="absolute inset-0 bg-emerald-300/15" />}
+      {failed && <div className="absolute inset-0 bg-rose-400/15" />}
     </div>
   );
 }
@@ -202,7 +235,9 @@ function ResultsContent() {
           const { type, index } = event as { type: string; index?: number };
 
           if (type === "agent_started" && index !== undefined) {
-            setAgents((prev) => prev.map((a) => (a.index === index ? { ...a, status: "running" } : a)));
+            setAgents((prev) =>
+              prev.map((a) => (a.index === index ? { ...a, status: "running", progress_percent: 8 } : a))
+            );
           }
 
           if (type === "agent_streaming" && index !== undefined) {
@@ -212,7 +247,17 @@ function ResultsContent() {
 
           if (type === "agent_progress" && index !== undefined) {
             const message = event.message as string;
-            setAgents((prev) => prev.map((a) => (a.index === index ? { ...a, progress: message } : a)));
+            setAgents((prev) =>
+              prev.map((a) =>
+                a.index === index
+                  ? {
+                      ...a,
+                      progress: message,
+                      progress_percent: estimateProgressFromLog(message, a.progress_percent),
+                    }
+                  : a
+              )
+            );
           }
 
           if (type === "agent_done" && index !== undefined) {
@@ -220,7 +265,9 @@ function ResultsContent() {
             const failed = !!event.error;
             setAgents((prev) =>
               prev.map((a) =>
-                a.index === index ? { ...a, status: failed ? "failed" : "done", source, streaming_url: undefined } : a
+                a.index === index
+                  ? { ...a, status: failed ? "failed" : "done", source, streaming_url: undefined, progress_percent: 100 }
+                  : a
               )
             );
           }
