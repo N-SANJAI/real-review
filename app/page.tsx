@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import FishArrayLogo from "@/components/FishArrayLogo";
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -26,6 +27,7 @@ export default function Home() {
         <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-violet-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-white">
           Real insights · no paid fluff
         </p>
+        <FishArrayLogo className="mx-auto mb-4 h-16 w-auto max-w-[19rem]" />
         <h1 className="mb-3 bg-gradient-to-r from-cyan-600 via-blue-600 to-violet-600 bg-clip-text text-5xl font-black text-transparent sm:text-6xl">
           The Real Review
         </h1>
