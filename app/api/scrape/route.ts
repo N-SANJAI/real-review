@@ -6,11 +6,9 @@ export const maxDuration = 300;
 
 function buildGoal(product: string, sourceType: string): string {
   const goals: Record<string, string> = {
-    reddit: `You are on a Reddit search results page. Click on the most relevant discussion thread about "${product}" reviews. Once inside the thread, read through the comments and extract the key opinions, complaints, praise, and recurring issues. Return as JSON with fields: reviews (array of strings with actual user quotes/opinions), overall_sentiment (string).`,
-    trustpilot: `Extract user reviews for "${product}" from this page. Get the review text, star ratings, and dates. Flag any suspicious patterns (many 5-star reviews from new accounts). Return as JSON with fields: reviews (array of strings), credibility_notes (string).`,
-    forum: `Find all discussion posts and replies about "${product}". Extract user opinions, long-term ownership experiences, and any known issues. Return as JSON with fields: reviews (array of strings), credibility_notes (string).`,
-    youtube: `Extract the top 20 comments from this YouTube video about "${product}". Focus on comments that share real user experiences. Return as JSON with fields: reviews (array of strings).`,
-    other: `You are on a search results page. Click on the most relevant review article about "${product}". Once on the article page, extract the key opinions, pros, cons, verdict, and any scores or ratings mentioned. Return as JSON with fields: reviews (array of strings with direct quotes or opinions from the article), credibility_notes (string).`,
+    reddit: `Google results for "${product}" reviews on Reddit are shown. Click the most relevant Reddit thread. Read through the post and comments, and collect real user opinions, complaints, and praise about ${product}. Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
+    youtube: `Google results for "${product}" reviews on YouTube are shown. Click the most relevant YouTube video. Scroll down to the comments section and collect real user opinions and experiences about ${product}. Return JSON: { "reviews": ["comment 1", "comment 2", ...] }`,
+    other: `Find and click the most relevant review of "${product}". Extract key opinions, pros, cons, and any scores. Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
   };
   return goals[sourceType] || goals.other;
 }
