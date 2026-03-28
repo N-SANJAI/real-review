@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { runTinyfishAgent, cancelAllActiveRuns } from "@/lib/tinyfish";
-import { TargetUrl, ScrapedSource } from "@/lib/types";
+import { TargetUrl, ScrapedSource, ReviewEntry } from "@/lib/types";
 
 export const maxDuration = 300;
 
@@ -81,9 +81,39 @@ export async function POST(req: NextRequest) {
 
             const extracted = (data.result as Record<string, unknown>) || {};
             const rawReviews: unknown[] = (extracted.reviews as unknown[]) || [];
-            const reviews = rawReviews.map((r) =>
-              typeof r === "string" ? r : (r as Record<string, string>).text ?? JSON.stringify(r)
-            );
+            const reviews: ReviewEntry[] = rawReviews
+              .map((review): ReviewEntry | null => {
+                if (typeof review === "string") {
+                  return { text: review };
+                }
+                if (!review || typeof review !== "object") {
+                  return null;
+                }
+
+                const item = review as Record<string, unknown>;
+                const text =
+                  typeof item.text === "string"
+                    ? item.text
+                    : typeof item.comment === "string"
+                      ? item.comment
+                      : typeof item.review === "string"
+                        ? item.review
+                        : JSON.stringify(item);
+
+                const ratingValue = item.rating ?? item.stars ?? item.score;
+                const rating = typeof ratingValue === "number" ? ratingValue : null;
+                const date =
+                  typeof item.date === "string"
+                    ? item.date
+                    : typeof item.created_at === "string"
+                      ? item.created_at
+                      : typeof item.timestamp === "string"
+                        ? item.timestamp
+                        : null;
+
+                return { text, rating, date };
+              })
+              .filter((review): review is ReviewEntry => Boolean(review?.text));
             const source: ScrapedSource = {
               url: u.url,
               source_type: u.source_type,

@@ -6,7 +6,10 @@ export async function POST(req: NextRequest) {
   const { product, sources }: { product: string; sources: ScrapedSource[] } =
     await req.json();
 
-  const allReviews = sources.flatMap((s) => s.reviews).filter(Boolean);
+  const allReviews = sources
+    .flatMap((s) => s.reviews)
+    .map((review) => review.text)
+    .filter(Boolean);
 
   if (allReviews.length === 0) {
     const report: ReviewReport = {
@@ -27,7 +30,7 @@ export async function POST(req: NextRequest) {
   const reviewBlock = sources
     .map(
       (s) =>
-        `--- ${s.source_type.toUpperCase()} ---\n${s.reviews.map((r, i) => `${i + 1}. ${r}`).join("\n")}`
+        `--- ${s.source_type.toUpperCase()} ---\n${s.reviews.map((r, i) => `${i + 1}. ${r.text}${r.rating != null ? ` [${r.rating}/5]` : ""}${r.date ? ` (${r.date})` : ""}`).join("\n")}`
     )
     .join("\n\n");
 
