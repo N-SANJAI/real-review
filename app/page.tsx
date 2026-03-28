@@ -53,8 +53,15 @@ export default function Home() {
         </form>
 
         <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
-          Searches Reddit, Trustpilot, tech forums, and more in parallel.
+          Searches Reddit, YouTube, and more in parallel.
         </p>
+
+        <a
+          href="/compare"
+          className="mt-4 inline-block text-sm text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-300"
+        >
+          Or compare two products head-to-head →
+        </a>
       </div>
     </main>
   );
