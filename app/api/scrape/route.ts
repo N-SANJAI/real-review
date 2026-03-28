@@ -1,15 +1,47 @@
 import { NextRequest } from "next/server";
-import { runTinyfishAgent, cancelAllActiveRuns } from "@/lib/tinyfish";
+import { runTinyfishAgent } from "@/lib/tinyfish";
 import { TargetUrl, ScrapedSource, ReviewEntry } from "@/lib/types";
 
 export const maxDuration = 300;
 
 function buildGoal(product: string, sourceType: string): string {
   const goals: Record<string, string> = {
-    reddit: `You are on DuckDuckGo search results. Step 1: Click the first Reddit link. Step 2: Read the post title and comments on the thread. Step 3: Extract up to 20 distinct user opinions about "${product}". Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
-    youtube: `You are on YouTube search results for "${product} review". Step 1: Click the FIRST video result. Step 2: Scroll down past the video to the comments section. Step 3: Read and extract up to 10 user comments about "${product}". Return JSON: { "reviews": ["comment 1", "comment 2", ...] }`,
-    trustpilot: `You are on Trustpilot search results for "${product}". Step 1: Look at the search results. If NONE of the results are specifically about "${product}" (e.g. they are about the brand generally or a different product), return immediately: { "reviews": [] }. Step 2: If a relevant result exists, click it. Step 3: Extract up to 10 reviews with star ratings. Return JSON: { "reviews": [{"text": "review text", "rating": 3}, ...] }`,
-    twitter: `You are on DuckDuckGo search results for Twitter/X posts about "${product}". Step 1: Click the first Twitter/X link in the results. Step 2: Read the tweet and any replies or quoted tweets visible on the page. Step 3: Extract up to 10 real user opinions or experiences about "${product}". Ignore ads and promotional content. Return JSON: { "reviews": ["tweet opinion 1", "tweet opinion 2", ...] }`,
+    reddit: [
+      `You are on Reddit search results for "${product} review".`,
+      `Step 1: Click the first post that is a discussion about "${product}" (not an ad or unrelated post).`,
+      `Step 2: On the thread page, read the post title, body text, and comment replies.`,
+      `Step 3: Extract up to 20 distinct user opinions about "${product}" from the comments. Each opinion should be a real user's experience or view — skip bot replies, deleted comments, and off-topic replies.`,
+      `Step 4: If a cookie/consent banner appears, dismiss it first.`,
+      `Edge case: If search results are empty or no relevant thread exists, return immediately: { "reviews": [] }`,
+      `Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
+    ].join(" "),
+
+    youtube: [
+      `You are on YouTube search results for "${product} review".`,
+      `Step 1: Click the FIRST video result thumbnail or title (not an ad — skip any result marked "Ad").`,
+      `Step 2: Wait for the video page to load. Scroll down past the video player to the comments section.`,
+      `Step 3: Read the visible comments and extract up to 10 user comments that share opinions about "${product}".`,
+      `Edge case: If comments are turned off or none are visible, return: { "reviews": [] }`,
+      `Return JSON: { "reviews": ["comment 1", "comment 2", ...] }`,
+    ].join(" "),
+
+    trustpilot: [
+      `You are on Trustpilot search results for "${product}".`,
+      `Step 1: Look at the search results. If NONE of the results are specifically about "${product}" (e.g. they are about the brand generally, a parent company, or a different product), stop and return immediately: { "reviews": [] }`,
+      `Step 2: If a relevant result exists, click it to go to the review page.`,
+      `Step 3: Extract up to 10 reviews with their star ratings (1-5).`,
+      `Return JSON: { "reviews": [{"text": "review text", "rating": 3}, ...] }`,
+    ].join(" "),
+
+    twitter: [
+      `You are on DuckDuckGo search results for Twitter/X posts about "${product}".`,
+      `Step 1: Look for links to twitter.com or x.com in the results. Click the first one.`,
+      `Step 2: On the Twitter/X page, read the tweet and any visible replies.`,
+      `Step 3: Extract up to 10 real user opinions or experiences about "${product}". Skip ads, promotional tweets, and bot replies.`,
+      `Edge case: If Twitter requires login or shows an error page, return: { "reviews": [] }`,
+      `Return JSON: { "reviews": ["tweet opinion 1", "tweet opinion 2", ...] }`,
+    ].join(" "),
+
     other: `Find and click the most relevant review of "${product}". Extract key opinions. Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
   };
   return goals[sourceType] || goals.other;
@@ -18,14 +50,6 @@ function buildGoal(product: string, sourceType: string): string {
 // Streams scrape progress as SSE so the client can show live browser views
 export async function POST(req: NextRequest) {
   const { product, urls }: { product: string; urls: TargetUrl[] } = await req.json();
-
-  // Cancel any zombie runs from previous sessions before starting fresh
-  const cancelled = await cancelAllActiveRuns();
-  if (cancelled > 0) {
-    console.log(`[scrape] Cleared ${cancelled} zombie runs from queue`);
-    // Brief pause to let TinyFish process the cancellations
-    await new Promise((r) => setTimeout(r, 1500));
-  }
 
   console.log(`[scrape] Starting ${urls.length} agents for "${product}"`);
   urls.forEach((u, i) => console.log(`[scrape]   [${i + 1}] ${u.source_type.padEnd(10)} ${u.url}`));

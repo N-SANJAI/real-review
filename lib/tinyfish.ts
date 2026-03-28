@@ -66,9 +66,9 @@ export async function cancelAllActiveRuns() {
 export async function runTinyfishAgent(
   url: string,
   goal: string,
-  onEvent?: TinyfishEventCallback
+  onEvent?: TinyfishEventCallback,
+  browserProfile: "lite" | "stealth" = "lite"
 ) {
-
   let currentRunId: string | null = null;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 300_000); // 5 min per agent
@@ -79,7 +79,7 @@ export async function runTinyfishAgent(
     const body: Record<string, unknown> = {
       url,
       goal,
-      browser_profile: "lite",
+      browser_profile: browserProfile,
       capture_config: {
         elements: false,
         snapshots: false,
@@ -184,25 +184,3 @@ export async function runTinyfishAgent(
   }
 }
 
-// Run agents with a concurrency cap
-export async function runParallelAgents(
-  tasks: { url: string; goal: string }[],
-  concurrency = 3
-) {
-  const results: PromiseSettledResult<unknown>[] = new Array(tasks.length);
-  const queue = tasks.map((task, i) => ({ task, i }));
-
-  async function worker() {
-    while (queue.length > 0) {
-      const item = queue.shift();
-      if (!item) break;
-      const result = await runTinyfishAgent(item.task.url, item.task.goal)
-        .then((value) => ({ status: "fulfilled" as const, value }))
-        .catch((reason) => ({ status: "rejected" as const, reason }));
-      results[item.i] = result;
-    }
-  }
-
-  await Promise.all(Array.from({ length: concurrency }, worker));
-  return results;
-}

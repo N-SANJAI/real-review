@@ -6,9 +6,9 @@ export async function POST(req: NextRequest) {
 
   const urls = [
     {
-      url: `https://duckduckgo.com/?q=${encodeURIComponent(product + " review site:reddit.com")}`,
+      url: `https://www.reddit.com/search/?q=${encodeURIComponent(product + " review")}&type=link&sort=relevance`,
       source_type: "reddit",
-      reason: "DuckDuckGo search for Reddit discussions about the product",
+      reason: "Reddit search for user discussions about the product",
     },
     {
       url: `https://www.youtube.com/results?search_query=${encodeURIComponent(product + " review")}`,
