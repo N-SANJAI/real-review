@@ -4,7 +4,8 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef, Suspense } from "react";
 import ReportCard from "@/components/ReportCard";
 import SourceCard from "@/components/SourceCard";
-import { ReviewReport, ScrapedSource } from "@/lib/types";
+import PricingCard from "@/components/PricingCard";
+import { ReviewReport, ScrapedSource, PriceAnalysis } from "@/lib/types";
 
 interface AgentState {
   index: number;
@@ -25,7 +26,7 @@ function AgentCard({ agent }: { agent: AgentState }) {
     amazon: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200",
     forum: "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200",
     youtube: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
-    youtube_2: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
+    twitter: "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200",
     other: "bg-slate-100 text-slate-700 dark:bg-slate-700/70 dark:text-slate-200",
   };
 
@@ -107,6 +108,8 @@ function ResultsContent() {
   const [agents, setAgents] = useState<AgentState[]>([]);
   const [sources, setSources] = useState<ScrapedSource[]>([]);
   const [report, setReport] = useState<ReviewReport | null>(null);
+  const [priceAnalysis, setPriceAnalysis] = useState<PriceAnalysis | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
   const [error, setError] = useState("");
   const started = useRef(false);
 
@@ -204,13 +207,44 @@ function ResultsContent() {
       setStatus("synthesizing");
       setStatusMessage("Synthesizing the real verdict...");
 
-      const reportRes = await fetch("/api/synthesize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product: query, sources: finalSources }),
-      });
-      const { report: finalReport }: { report: ReviewReport } = await reportRes.json();
+      // Run OpenAI synthesis and pricing fetch in parallel
+      // (synthesis is just an OpenAI call, pricing uses TinyFish — no conflict)
+      setPricingLoading(true);
+      const [reportRes, fetchedPrices] = await Promise.all([
+        fetch("/api/synthesize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ product: query, sources: finalSources }),
+        }).then((r) => r.json()),
+        fetch("/api/pricing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ product: query }),
+        })
+          .then((r) => r.json())
+          .then((d) => d.prices)
+          .catch(() => null),
+      ]);
+
+      const finalReport: ReviewReport = reportRes.report;
       setReport(finalReport);
+
+      // Run price analysis if we got prices
+      if (fetchedPrices) {
+        try {
+          const analysisRes = await fetch("/api/price-analysis", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ product: query, prices: fetchedPrices, report: finalReport }),
+          });
+          const { analysis } = await analysisRes.json();
+          setPriceAnalysis(analysis);
+        } catch {
+          console.error("Price analysis failed");
+        }
+      }
+      setPricingLoading(false);
+
       setStatus("done");
       setAgents([]);
     } catch (err) {
@@ -264,7 +298,20 @@ function ResultsContent() {
 
         {status === "error" && <div className="mt-8 text-rose-600 dark:text-rose-300">{error}</div>}
 
-        {report && <ReportCard report={report} product={query} />}
+        {(report || pricingLoading) && (
+          <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              {report && <ReportCard report={report} product={query} />}
+            </div>
+            <div className="lg:col-span-1">
+              {priceAnalysis ? (
+                <PricingCard analysis={priceAnalysis} />
+              ) : pricingLoading ? (
+                <PricingCard analysis={{ best_price: null, all_prices: [], worth_it: false, verdict: "", recommended_price: null }} loading />
+              ) : null}
+            </div>
+          </div>
+        )}
 
         {sources.length > 0 && (
           <div className="mt-10">

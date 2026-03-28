@@ -13,22 +13,17 @@ export async function POST(req: NextRequest) {
     {
       url: `https://www.youtube.com/results?search_query=${encodeURIComponent(product + " review")}`,
       source_type: "youtube",
-      reason: "YouTube video #1 — comments from the first result",
-    },
-    {
-      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(product + " review")}`,
-      source_type: "youtube_2",
-      reason: "YouTube video #2 — comments from the second result for less bias",
-    },
-    {
-      url: `https://www.amazon.com/s?k=${encodeURIComponent(product)}`,
-      source_type: "amazon",
-      reason: "Amazon search for customer reviews",
+      reason: "YouTube search for video reviews and comments",
     },
     {
       url: `https://www.trustpilot.com/search?query=${encodeURIComponent(product)}`,
       source_type: "trustpilot",
       reason: "Trustpilot search for user reviews",
+    },
+    {
+      url: `https://duckduckgo.com/?q=${encodeURIComponent(product + " review site:twitter.com OR site:x.com")}`,
+      source_type: "twitter",
+      reason: "DuckDuckGo search for Twitter/X user opinions",
     },
   ];
 
