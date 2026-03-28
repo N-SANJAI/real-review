@@ -5,6 +5,7 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import ReportCard from "@/components/ReportCard";
 import SourceCard from "@/components/SourceCard";
 import PricingCard from "@/components/PricingCard";
+import FishArrayLogo from "@/components/FishArrayLogo";
 import { ReviewReport, ScrapedSource, PriceAnalysis } from "@/lib/types";
 
 interface AgentState {
@@ -84,8 +85,8 @@ function AgentCard({ agent }: { agent: AgentState }) {
             <div className="truncate px-4 pb-2 text-xs text-slate-500 dark:text-slate-400">{agent.progress}</div>
           )}
 
-          {agent.streaming_url && agent.status === "running" && !iframeError && (
-            <div className="relative bg-slate-100 dark:bg-black" style={{ aspectRatio: "16/9" }}>
+          <div className="agent-viewport relative border-y border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-black" style={{ aspectRatio: "16/9" }}>
+            {agent.streaming_url && !iframeError && (
               <iframe
                 src={agent.streaming_url}
                 className="h-full w-full border-0"
@@ -93,24 +94,34 @@ function AgentCard({ agent }: { agent: AgentState }) {
                 title={`Live browser: ${agent.url}`}
                 sandbox="allow-scripts allow-same-origin"
               />
-            </div>
-          )}
+            )}
 
-          {agent.streaming_url && agent.status === "running" && iframeError && (
-            <div className="px-4 pb-3">
-              <a
-                href={agent.streaming_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-cyan-600 underline dark:text-cyan-300"
-              >
-                Open live browser view ↗
-              </a>
-            </div>
-          )}
+            {(!agent.streaming_url || iframeError) && (
+              <div className="absolute inset-0 flex items-center justify-center px-4 text-center">
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                    {agent.status === "queued" && "Queued and waiting to swim."}
+                    {agent.status === "running" && "Live stream not available."}
+                    {agent.status === "done" && "Mission complete — tank secured."}
+                    {agent.status === "failed" && "Agent hit rough waters."}
+                  </p>
+                  {agent.streaming_url && iframeError && (
+                    <a
+                      href={agent.streaming_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-block text-xs text-cyan-600 underline dark:text-cyan-300"
+                    >
+                      Open live browser view ↗
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
-          {agent.streaming_url && agent.status === "running" && !iframeError && (
-            <div className="border-t border-slate-200 px-4 py-2 dark:border-slate-800">
+          {agent.streaming_url && !iframeError && (
+            <div className="px-4 py-2">
               <a
                 href={agent.streaming_url}
                 target="_blank"
@@ -172,6 +183,16 @@ function ResultsContent() {
   const [priceAnalysis, setPriceAnalysis] = useState<PriceAnalysis | null>(null);
   const [pricingLoading, setPricingLoading] = useState(false);
   const [error, setError] = useState("");
+  const fishPuns = useRef([
+    "Totally objective take: this product is o-fish-ally dramatic.",
+    "Shocking update: still searching for unbiased opinions in this sea of hot takes.",
+    "Fin fact: your patience level is now a certified deep-sea species.",
+    "The algorithm says this review thread is krilling your vibe.",
+    "Current status: swimming through comments so you don't have tuna-scroll forever.",
+    "We asked for clarity and got a whole school of suspiciously confident opinions.",
+  ]);
+  const [punBubble, setPunBubble] = useState<{ id: number; side: "left" | "right"; text: string; dodged: boolean } | null>(null);
+  const punIndex = useRef(0);
   const started = useRef(false);
 
   useEffect(() => {
@@ -179,6 +200,18 @@ function ResultsContent() {
     started.current = true;
     runPipeline();
   }, [query]);
+
+  useEffect(() => {
+    const spawnPun = () => {
+      const text = fishPuns.current[punIndex.current % fishPuns.current.length];
+      const side = punIndex.current % 2 === 0 ? "left" : "right";
+      setPunBubble({ id: Date.now(), side, text, dodged: false });
+      punIndex.current += 1;
+    };
+    spawnPun();
+    const interval = setInterval(spawnPun, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const runPipeline = async () => {
     try {
@@ -329,13 +362,31 @@ function ResultsContent() {
     }
   };
 
-  const activeAgents = agents.filter((a) => a.status !== "queued");
   const queuedCount = agents.filter((a) => a.status === "queued").length;
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-12">
+    <main className="relative mx-auto max-w-5xl px-4 py-12">
+      {punBubble && (
+        <aside
+          className={`pun-bubble ${punBubble.side === "left" ? "left-2 lg:-left-16" : "right-2 lg:-right-16"} ${
+            punBubble.dodged ? (punBubble.side === "left" ? "pun-bubble-dodge-left" : "pun-bubble-dodge-right") : ""
+          }`}
+          key={punBubble.id}
+        >
+          <p>{punBubble.text}</p>
+          <button
+            type="button"
+            aria-label="Close fish pun"
+            onClick={() => setPunBubble((prev) => (prev ? { ...prev, dodged: true } : prev))}
+            className="pun-bubble-close"
+          >
+            ×
+          </button>
+        </aside>
+      )}
       <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-xl shadow-cyan-100/60 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-cyan-950/30">
         <a href="/" className="mb-5 inline-block text-sm text-slate-500 hover:text-cyan-700 dark:text-slate-400 dark:hover:text-cyan-300">← Back</a>
+        <FishArrayLogo className="mb-3 h-14 w-auto max-w-[17rem]" />
         <h1 className="mb-2 text-3xl font-bold text-slate-900 dark:text-slate-50">
           Reviews for <span className="bg-gradient-to-r from-cyan-500 to-violet-600 bg-clip-text text-transparent">{query}</span>
         </h1>
@@ -360,11 +411,11 @@ function ResultsContent() {
           </div>
         )}
 
-        {activeAgents.length > 0 && (
+        {agents.length > 0 && (
           <div className="mt-6 space-y-3">
             <h2 className="text-sm font-medium uppercase tracking-wider text-violet-600 dark:text-violet-300">Live Browser Agents</h2>
-            <div className="grid gap-3">
-              {activeAgents.map((agent) => (
+            <div className="grid gap-3 md:grid-cols-2">
+              {agents.map((agent) => (
                 <AgentCard key={agent.index} agent={agent} />
               ))}
             </div>

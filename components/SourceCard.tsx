@@ -31,6 +31,7 @@ export default function SourceCard({ source }: Props) {
   const failed = source.reviews.length === 0;
   const [sortBy, setSortBy] = useState<"top" | "bottom" | "newest" | "oldest">("top");
   const [searchTerm, setSearchTerm] = useState("");
+  const [showAllComments, setShowAllComments] = useState(false);
 
   const normalizedReviews = useMemo<ReviewEntry[]>(
     () =>
@@ -132,7 +133,7 @@ export default function SourceCard({ source }: Props) {
             <p className="text-xs text-slate-500 dark:text-slate-400">No comments match that filter.</p>
           ) : (
             <ul className="space-y-2.5">
-              {filteredAndSorted.slice(0, 5).map((review, i) => {
+              {(showAllComments ? filteredAndSorted : filteredAndSorted.slice(0, 5)).map((review, i) => {
                 const sentimentScore = scoreSentiment(review);
                 const sentimentStyle = getSentimentStyle(sentimentScore);
                 return (
@@ -144,8 +145,16 @@ export default function SourceCard({ source }: Props) {
                   {review.date && <p className="text-[11px] text-slate-500 dark:text-slate-400">{review.date}</p>}
                 </li>
               )})}
-              {filteredAndSorted.length > 5 && (
-                <li className="text-xs text-slate-500 dark:text-slate-400">+{filteredAndSorted.length - 5} more</li>
+              {filteredAndSorted.length > 5 && !showAllComments && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllComments(true)}
+                    className="text-xs text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-300"
+                  >
+                    +{filteredAndSorted.length - 5} more
+                  </button>
+                </li>
               )}
             </ul>
           )}
