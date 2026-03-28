@@ -16,3 +16,65 @@ body {
     radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.08) 0, transparent 42%),
     radial-gradient(circle at 30% 90%, rgba(244, 114, 182, 0.08) 0, transparent 40%);
 }
+
+.tinyfish-bar-container {
+  min-height: 8rem;
+}
+
+.tinyfish-water-layer {
+  background-image: linear-gradient(180deg, rgba(34, 211, 238, 0.5) 0%, rgba(6, 182, 212, 0.85) 55%, rgba(8, 145, 178, 0.95) 100%);
+  animation: tinyfish-water-sway 1.8s ease-in-out infinite;
+}
+
+.tinyfish-water-fill {
+  height: 82%;
+  animation:
+    tinyfish-water-rise 5.5s ease-in-out infinite alternate,
+    tinyfish-water-sway 1.8s ease-in-out infinite;
+}
+
+.tinyfish-food-drop {
+  position: absolute;
+  display: block;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 9999px;
+  background: rgba(250, 204, 21, 0.9);
+  animation: tinyfish-food-fall 2.6s linear infinite;
+}
+
+@keyframes tinyfish-water-sway {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(0.2rem);
+  }
+}
+
+@keyframes tinyfish-water-rise {
+  0% {
+    height: 22%;
+  }
+  100% {
+    height: 85%;
+  }
+}
+
+@keyframes tinyfish-food-fall {
+  0% {
+    transform: translateY(0) scale(0.9);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(6.6rem) scale(1);
+    opacity: 0;
+  }
+}

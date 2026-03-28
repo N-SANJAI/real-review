@@ -112,12 +112,14 @@ export default function SourceCard({ source }: Props) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Filter comments by keyword…"
-              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-cyan-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 sm:max-w-xs"
+              className="w-full rounded-md border border-cyan-200 bg-gradient-to-r from-cyan-50 via-white to-indigo-50 px-3 py-2 text-xs font-medium tracking-wide text-slate-700 shadow-sm focus:border-cyan-400 focus:outline-none dark:border-cyan-900/70 dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-950 dark:to-cyan-950/40 dark:text-slate-200 sm:max-w-xs"
+              style={{ fontFamily: "'Trebuchet MS', 'Segoe UI', sans-serif" }}
             />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as "top" | "bottom" | "newest" | "oldest")}
-              className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-cyan-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+              className="rounded-md border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-3 py-2 text-xs font-medium tracking-wide text-slate-700 shadow-sm focus:border-violet-400 focus:outline-none dark:border-violet-900/70 dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-950 dark:to-violet-950/40 dark:text-slate-200"
+              style={{ fontFamily: "'Trebuchet MS', 'Segoe UI', sans-serif" }}
             >
               <option value="top">Sort: Top (Positive)</option>
               <option value="bottom">Sort: Bottom (Negative)</option>
@@ -129,13 +131,19 @@ export default function SourceCard({ source }: Props) {
           {filteredAndSorted.length === 0 ? (
             <p className="text-xs text-slate-500 dark:text-slate-400">No comments match that filter.</p>
           ) : (
-            <ul className="space-y-1">
-              {filteredAndSorted.slice(0, 5).map((review, i) => (
-                <li key={`${review.text}-${i}`} className="space-y-0.5 text-xs text-slate-600 dark:text-slate-300">
-                  <p className="line-clamp-2">&quot;{review.text}&quot;</p>
+            <ul className="space-y-2.5">
+              {filteredAndSorted.slice(0, 5).map((review, i) => {
+                const sentimentScore = scoreSentiment(review);
+                const sentimentStyle = getSentimentStyle(sentimentScore);
+                return (
+                <li
+                  key={`${review.text}-${i}`}
+                  className={`rounded-lg border px-3 py-2 text-xs ${sentimentStyle.container}`}
+                >
+                  <p className="line-clamp-3 leading-relaxed">&quot;{review.text}&quot;</p>
                   {review.date && <p className="text-[11px] text-slate-500 dark:text-slate-400">{review.date}</p>}
                 </li>
-              ))}
+              )})}
               {filteredAndSorted.length > 5 && (
                 <li className="text-xs text-slate-500 dark:text-slate-400">+{filteredAndSorted.length - 5} more</li>
               )}
@@ -198,4 +206,22 @@ function parseDate(date?: string | null): number | null {
   if (!date) return null;
   const parsed = Date.parse(date);
   return Number.isNaN(parsed) ? null : parsed;
+}
+
+function getSentimentStyle(score: number): { container: string } {
+  if (score > 0) {
+    return {
+      container: "border-emerald-200 bg-emerald-50/70 text-emerald-900 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-100",
+    };
+  }
+
+  if (score < 0) {
+    return {
+      container: "border-rose-200 bg-rose-50/70 text-rose-900 dark:border-rose-800/70 dark:bg-rose-950/30 dark:text-rose-100",
+    };
+  }
+
+  return {
+    container: "border-amber-200 bg-amber-50/70 text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-100",
+  };
 }
