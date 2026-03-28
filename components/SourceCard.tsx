@@ -1,4 +1,7 @@
-import { ScrapedSource } from "@/lib/types";
+"use client";
+
+import { useMemo, useState } from "react";
+import { ReviewEntry, ScrapedSource } from "@/lib/types";
 
 interface Props {
   source: ScrapedSource;
@@ -24,6 +27,55 @@ export default function SourceCard({ source }: Props) {
   const label = sourceLabels[source.source_type] || "Web";
   const badgeColor = sourceBadgeColors[source.source_type] || sourceBadgeColors.other;
   const failed = source.reviews.length === 0;
+  const [sortBy, setSortBy] = useState<"top" | "bottom" | "newest" | "oldest">("top");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const normalizedReviews = useMemo<ReviewEntry[]>(
+    () =>
+      source.reviews
+        .map((review) => {
+          if (typeof review === "string") {
+            return { text: review };
+          }
+          return review;
+        })
+        .filter((review) => Boolean(review?.text)),
+    [source.reviews]
+  );
+
+  const filteredAndSorted = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    const filtered = normalizedReviews.filter((review) => {
+      if (!query) return true;
+      return review.text.toLowerCase().includes(query);
+    });
+
+    const withIndexAndScore = filtered.map((review, index) => ({
+      review,
+      index,
+      sentimentScore: scoreSentiment(review),
+      parsedDate: parseDate(review.date),
+    }));
+
+    withIndexAndScore.sort((a, b) => {
+      if (sortBy === "top") return b.sentimentScore - a.sentimentScore;
+      if (sortBy === "bottom") return a.sentimentScore - b.sentimentScore;
+
+      if (sortBy === "newest") {
+        if (a.parsedDate && b.parsedDate) return b.parsedDate - a.parsedDate;
+        if (a.parsedDate) return -1;
+        if (b.parsedDate) return 1;
+        return a.index - b.index;
+      }
+
+      if (a.parsedDate && b.parsedDate) return a.parsedDate - b.parsedDate;
+      if (a.parsedDate) return -1;
+      if (b.parsedDate) return 1;
+      return a.index - b.index;
+    });
+
+    return withIndexAndScore.map(({ review }) => review);
+  }, [normalizedReviews, searchTerm, sortBy]);
 
   return (
     <div className={`rounded-xl border p-4 shadow-sm transition ${failed ? "border-slate-200 bg-slate-50/70 opacity-70 dark:border-slate-800 dark:bg-slate-900/40" : "border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-900/90"}`}>
@@ -51,20 +103,97 @@ export default function SourceCard({ source }: Props) {
       )}
 
       {!failed && (
-        <ul className="space-y-1">
-          {source.reviews.slice(0, 3).map((review, i) => {
-            const text = typeof review === "string" ? review : (review as Record<string, string>).text ?? JSON.stringify(review);
-            return (
-              <li key={i} className="line-clamp-2 text-xs text-slate-600 dark:text-slate-300">
-                "{text}"
-              </li>
-            );
-          })}
-          {source.reviews.length > 3 && (
-            <li className="text-xs text-slate-500 dark:text-slate-400">+{source.reviews.length - 3} more</li>
+        <div className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Filter comments by keyword…"
+              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-cyan-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 sm:max-w-xs"
+            />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "top" | "bottom" | "newest" | "oldest")}
+              className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-cyan-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+            >
+              <option value="top">Sort: Top (Positive)</option>
+              <option value="bottom">Sort: Bottom (Negative)</option>
+              <option value="newest">Sort: Date (Newest)</option>
+              <option value="oldest">Sort: Date (Oldest)</option>
+            </select>
+          </div>
+
+          {filteredAndSorted.length === 0 ? (
+            <p className="text-xs text-slate-500 dark:text-slate-400">No comments match that filter.</p>
+          ) : (
+            <ul className="space-y-1">
+              {filteredAndSorted.slice(0, 5).map((review, i) => (
+                <li key={`${review.text}-${i}`} className="space-y-0.5 text-xs text-slate-600 dark:text-slate-300">
+                  <p className="line-clamp-2">&quot;{review.text}&quot;</p>
+                  {review.date && <p className="text-[11px] text-slate-500 dark:text-slate-400">{review.date}</p>}
+                </li>
+              ))}
+              {filteredAndSorted.length > 5 && (
+                <li className="text-xs text-slate-500 dark:text-slate-400">+{filteredAndSorted.length - 5} more</li>
+              )}
+            </ul>
           )}
-        </ul>
+        </div>
       )}
     </div>
   );
+}
+
+const positiveWords = [
+  "love",
+  "great",
+  "amazing",
+  "excellent",
+  "best",
+  "awesome",
+  "perfect",
+  "fantastic",
+  "solid",
+  "recommend",
+  "worth",
+  "comfortable",
+  "good",
+  "impressive",
+  "premium",
+  "quality",
+];
+
+const negativeWords = [
+  "bad",
+  "worst",
+  "terrible",
+  "hate",
+  "broke",
+  "broken",
+  "cheap",
+  "disappointing",
+  "issue",
+  "problem",
+  "return",
+  "refund",
+  "waste",
+  "overpriced",
+  "uncomfortable",
+  "flimsy",
+  "defect",
+];
+
+function scoreSentiment(review: ReviewEntry): number {
+  const lower = review.text.toLowerCase();
+  const positiveHits = positiveWords.filter((word) => lower.includes(word)).length;
+  const negativeHits = negativeWords.filter((word) => lower.includes(word)).length;
+  const ratingBoost = typeof review.rating === "number" ? review.rating - 3 : 0;
+  return positiveHits - negativeHits + ratingBoost;
+}
+
+function parseDate(date?: string | null): number | null {
+  if (!date) return null;
+  const parsed = Date.parse(date);
+  return Number.isNaN(parsed) ? null : parsed;
 }
