@@ -50,6 +50,13 @@ export default function Home() {
           </button>
         </form>
 
+        <a
+          href="/compare"
+          className="mt-4 inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-200 dark:hover:border-cyan-500 dark:hover:text-cyan-300"
+        >
+          Compare two products
+        </a>
+
         <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
           Searches Reddit, Trustpilot, tech forums, and more in parallel.
         </p>

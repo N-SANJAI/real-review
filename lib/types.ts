@@ -42,3 +42,26 @@ export interface PriceAnalysis {
   verdict: string;
   recommended_price: string | null;
 }
+
+export interface AgentState {
+  index: number;
+  url: string;
+  source_type: string;
+  status: "queued" | "running" | "done" | "failed";
+  streaming_url?: string;
+  progress?: string;
+  source?: ScrapedSource;
+}
+
+export interface ComparisonReport {
+  winner_overall: "product_a" | "product_b" | "tie";
+  winner_value: "product_a" | "product_b" | "tie";
+  strengths_a: string[];
+  strengths_b: string[];
+  weaknesses_a: string[];
+  weaknesses_b: string[];
+  best_for_a: string;
+  best_for_b: string;
+  final_recommendation: string;
+  summary: string;
+}

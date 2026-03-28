@@ -1,115 +1,88 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runParallelAgents } from "@/lib/tinyfish";
-import openai from "@/lib/openai";
+import { runTinyfishAgent } from "@/lib/tinyfish";
 import { PriceEntry } from "@/lib/types";
 
 export const maxDuration = 300;
 
-const STORES = [
+const STORES: { store: string; url: (q: string) => string; profile: "lite" | "stealth" }[] = [
   {
     store: "Amazon.sg",
     url: (q: string) => `https://www.amazon.sg/s?k=${encodeURIComponent(q)}`,
-  },
-  {
-    store: "Shopee",
-    url: (q: string) => `https://shopee.sg/search?keyword=${encodeURIComponent(q)}`,
-  },
-  {
-    store: "Lazada",
-    url: (q: string) => `https://www.lazada.sg/tag/${encodeURIComponent(q)}/`,
+    profile: "lite",
   },
   {
     store: "Courts",
     url: (q: string) => `https://www.courts.com.sg/catalogsearch/result/?q=${encodeURIComponent(q)}`,
+    profile: "lite",
+  },
+  {
+    store: "Harvey Norman",
+    url: (q: string) => `https://www.harveynorman.com.sg/search?q=${encodeURIComponent(q)}`,
+    profile: "lite",
   },
 ];
 
-// Simple goal: just read what's on the page, no clicking
-const EXTRACT_GOAL =
-  `You are on a search results page. Extract the first 5 product listings visible on this page. ` +
-  `For each listing, note the product name and price. Do NOT click any links. ` +
-  `Return JSON: { "listings": [{"name": "product name", "price": "price as shown"}, ...] }. ` +
-  `If no products are visible or the page is empty, return: { "listings": [] }`;
+function buildPriceGoal(product: string): string {
+  return [
+    `You are on a search results page for "${product}".`,
+    `Step 1: Look at the product listings on this page. Find the listing that best matches "${product}" - it must be the actual product, not an accessory, case, cable, or unrelated item.`,
+    `Step 2: Click on that product listing to navigate to its product detail page.`,
+    `Step 3: On the product page, extract three things: (a) the exact product name as shown, (b) the selling price in SGD as displayed, (c) the full URL from the browser address bar.`,
+    `Edge case: If no matching product exists in the results, or the page is empty/blocked, return immediately: { "product_name": "", "price": "", "product_url": "" }`,
+    `Edge case: If a cookie/consent banner appears, dismiss it first before proceeding.`,
+    `Return JSON: { "product_name": "Samsung Galaxy S24 Ultra 256GB", "price": "$1,498.00", "product_url": "https://example.com/product/123" }`,
+  ].join(" ");
+}
 
-async function pickBestListing(
-  product: string,
-  store: string,
-  listings: { name: string; price: string }[]
-): Promise<{ product_name: string; price: number | null }> {
-  if (listings.length === 0) return { product_name: "", price: null };
+function parsePrice(raw: string): number | null {
+  if (!raw) return null;
+  const cleaned = raw.replace(/[^0-9.]/g, "");
+  const num = parseFloat(cleaned);
+  return Number.isNaN(num) ? null : num;
+}
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: `You match product listings to a user's search query. Pick the listing that is the ACTUAL product "${product}" (not an accessory, case, cable, or unrelated item). Return JSON: { "index": <0-based index of best match, or -1 if none match>, "price": <numeric price in SGD, or null>, "product_name": "<exact name from listing>" }`,
-      },
-      {
-        role: "user",
-        content: `Store: ${store}\nSearch query: "${product}"\n\nListings:\n${listings.map((l, i) => `${i}. ${l.name} — ${l.price}`).join("\n")}`,
-      },
-    ],
-  });
+async function fetchStorePrice(
+  store: { store: string; url: (q: string) => string; profile: "lite" | "stealth" },
+  product: string
+): Promise<PriceEntry> {
+  const searchUrl = store.url(product);
+  const fallback: PriceEntry = { store: store.store, price: null, product_name: "", url: searchUrl };
 
   try {
-    const json = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
-    if (json.index === -1 || json.index == null) return { product_name: "", price: null };
-    const price = typeof json.price === "number" ? json.price : null;
-    const product_name = typeof json.product_name === "string" ? json.product_name : listings[json.index]?.name ?? "";
-    return { product_name, price };
-  } catch {
-    return { product_name: "", price: null };
+    const data = await runTinyfishAgent(searchUrl, buildPriceGoal(product), undefined, store.profile);
+    const result = (data.result as Record<string, unknown>) || {};
+
+    const productName = typeof result.product_name === "string" ? result.product_name : "";
+    const priceRaw = typeof result.price === "string" ? result.price : String(result.price ?? "");
+    const productUrl = typeof result.product_url === "string" ? result.product_url : "";
+    const price = parsePrice(priceRaw);
+
+    if (!productName && price === null) {
+      console.log(`[pricing] ${store.store}: no matching product found`);
+      return fallback;
+    }
+
+    console.log(`[pricing] ${store.store}: ${price !== null ? `$${price}` : "no price"} - ${productName}`);
+    return {
+      store: store.store,
+      price,
+      product_name: productName,
+      url: productUrl || searchUrl,
+    };
+  } catch (e) {
+    console.error(`[pricing] ${store.store} failed:`, e instanceof Error ? e.message : e);
+    return fallback;
   }
 }
 
 export async function POST(req: NextRequest) {
   const { product } = await req.json();
-  console.log(`[pricing] Fetching SG prices for "${product}"`);
+  console.log(`[pricing] Fetching SG prices for "${product}" from ${STORES.length} stores`);
 
-  const tasks = STORES.map((s) => ({
-    url: s.url(product),
-    goal: EXTRACT_GOAL,
-  }));
+  const prices = await Promise.all(STORES.map((store) => fetchStorePrice(store, product)));
 
-  const results = await runParallelAgents(tasks, 4);
-
-  // Extract raw listings from TinyFish results
-  const rawListings = results.map((r, i) => {
-    const store = STORES[i].store;
-    if (r.status === "rejected") {
-      console.error(`[pricing] ${store} TinyFish failed`);
-      return { store, listings: [] as { name: string; price: string }[] };
-    }
-    const data = r.value as Record<string, unknown>;
-    const result = (data.result as Record<string, unknown>) || {};
-    const listings = Array.isArray(result.listings) ? result.listings as { name: string; price: string }[] : [];
-    console.log(`[pricing] ${store}: ${listings.length} listings extracted`);
-    return { store, listings };
-  });
-
-  // Use gpt-4o-mini in parallel to pick the right product from each store
-  const picks = await Promise.all(
-    rawListings.map((raw, i) =>
-      pickBestListing(product, raw.store, raw.listings).then((pick) => ({
-        store: raw.store,
-        ...pick,
-        url: STORES[i].url(product),
-      }))
-    )
+  console.log(
+    `[pricing] Done. ${prices.filter((p) => p.price !== null).length}/${prices.length} prices found`
   );
-
-  const prices: PriceEntry[] = picks.map((p) => {
-    console.log(`[pricing] ${p.store}: ${p.price !== null ? `$${p.price}` : "unavailable"} — ${p.product_name}`);
-    return {
-      store: p.store,
-      price: p.price,
-      product_name: p.product_name,
-      url: p.url,
-    };
-  });
-
   return NextResponse.json({ prices });
 }

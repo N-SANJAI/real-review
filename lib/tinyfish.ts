@@ -66,9 +66,9 @@ export async function cancelAllActiveRuns() {
 export async function runTinyfishAgent(
   url: string,
   goal: string,
-  onEvent?: TinyfishEventCallback
+  onEvent?: TinyfishEventCallback,
+  browserProfile: "lite" | "stealth" = "lite"
 ) {
-
   let currentRunId: string | null = null;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 300_000); // 5 min per agent
@@ -79,7 +79,7 @@ export async function runTinyfishAgent(
     const body: Record<string, unknown> = {
       url,
       goal,
-      browser_profile: "lite",
+      browser_profile: browserProfile,
       capture_config: {
         elements: false,
         snapshots: false,
