@@ -146,7 +146,8 @@ export async function runTinyfishAgent(
           if (typeof result === "string") {
             try { result = JSON.parse(result); } catch { /* leave as string */ }
           }
-          console.log(`[tinyfish] DONE   ${url} → reviews=${(result as Record<string, unknown>)?.reviews?.length ?? "?"}`);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          console.log(`[tinyfish] DONE   ${url} → reviews=${(result as any)?.reviews?.length ?? "?"}`);
           currentRunId = null; // completed cleanly, no need to cancel
           return { ...event, result };
         }

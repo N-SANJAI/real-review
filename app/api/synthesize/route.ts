@@ -1,44 +1,68 @@
 import { NextRequest, NextResponse } from "next/server";
-import openai from "@/lib/openai";
-import { ScrapedSource } from "@/lib/types";
+import { ScrapedSource, ReviewReport } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
-  const { product, sources }: { product: string; sources: ScrapedSource[] } = await req.json();
+  const { product, sources }: { product: string; sources: ScrapedSource[] } =
+    await req.json();
 
-  // Flatten all reviews into a readable block
-  const reviewsBlock = sources
-    .map((s) => {
-      const reviews = s.reviews.slice(0, 10).join("\n- ");
-      return `## ${s.source_type.toUpperCase()} (${s.url})\nCredibility: ${s.credibility_notes || "N/A"}\nReviews:\n- ${reviews}`;
-    })
-    .join("\n\n");
+  // Collect all reviews across sources
+  const allReviews = sources.flatMap((s) => s.reviews).filter(Boolean);
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: `You are an expert product analyst. You synthesize real user reviews from multiple sources into an honest, balanced report.
-Return ONLY a JSON object with these fields:
-- verdict: string (1 punchy sentence summarising the product)
-- score: number (1-10, based on user sentiment — not your own opinion)
-- pros: string[] (4-6 items, from real user feedback)
-- cons: string[] (4-6 items, from real user feedback)
-- red_flags: string[] (0-3 items, serious issues mentioned multiple times e.g. "breaks after 6 months")
-- summary: string (2-3 sentences of balanced analysis)
+  // Simple keyword-based sentiment analysis (no AI needed)
+  const positiveWords = [
+    "love", "great", "amazing", "excellent", "best", "awesome", "perfect",
+    "fantastic", "solid", "recommend", "worth", "comfortable", "good",
+    "impressive", "premium", "quality",
+  ];
+  const negativeWords = [
+    "bad", "worst", "terrible", "hate", "broke", "broken", "cheap",
+    "disappointing", "issue", "problem", "return", "refund", "waste",
+    "overpriced", "uncomfortable", "flimsy", "defect",
+  ];
 
-Base everything strictly on what users said. Do not invent or embellish.`,
-      },
-      {
-        role: "user",
-        content: `Synthesize a review report for: "${product}"\n\nUser review data:\n\n${reviewsBlock}`,
-      },
-    ],
-  });
+  const pros: string[] = [];
+  const cons: string[] = [];
 
-  const content = completion.choices[0].message.content || "{}";
-  const report = JSON.parse(content);
+  for (const review of allReviews) {
+    const lower = review.toLowerCase();
+    const isPositive = positiveWords.some((w) => lower.includes(w));
+    const isNegative = negativeWords.some((w) => lower.includes(w));
+
+    if (isPositive && !isNegative && pros.length < 6) {
+      pros.push(review.length > 150 ? review.slice(0, 147) + "..." : review);
+    } else if (isNegative && cons.length < 6) {
+      cons.push(review.length > 150 ? review.slice(0, 147) + "..." : review);
+    }
+  }
+
+  // Count sentiment to compute a rough score
+  let positiveCount = 0;
+  let negativeCount = 0;
+  for (const review of allReviews) {
+    const lower = review.toLowerCase();
+    if (positiveWords.some((w) => lower.includes(w))) positiveCount++;
+    if (negativeWords.some((w) => lower.includes(w))) negativeCount++;
+  }
+  const total = positiveCount + negativeCount || 1;
+  const score = Math.round((positiveCount / total) * 8 + 2); // Scale 2-10
+
+  const sourceList = sources.map((s) => s.source_type).join(", ");
+
+  const report: ReviewReport = {
+    verdict:
+      allReviews.length === 0
+        ? `Not enough reviews found for ${product}.`
+        : score >= 7
+          ? `${product} is well-regarded by real users.`
+          : score >= 5
+            ? `${product} gets mixed reactions from real users.`
+            : `${product} has significant complaints from real users.`,
+    score: Math.min(10, Math.max(1, score)),
+    pros: pros.length > 0 ? pros : ["No clear positives extracted yet."],
+    cons: cons.length > 0 ? cons : ["No clear negatives extracted yet."],
+    red_flags: [],
+    summary: `Based on ${allReviews.length} real user opinions from ${sourceList}. This is a simple aggregation — no AI synthesis applied.`,
+  };
 
   return NextResponse.json({ report });
 }
