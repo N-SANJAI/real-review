@@ -6,14 +6,24 @@ export async function POST(req: NextRequest) {
 
   const urls = [
     {
-      url: `https://www.google.com/search?q=${encodeURIComponent(product + " review site:reddit.com")}`,
+      url: `https://duckduckgo.com/?q=${encodeURIComponent(product + " review site:reddit.com")}`,
       source_type: "reddit",
-      reason: "Google search for Reddit discussions about the product",
+      reason: "DuckDuckGo search for Reddit discussions about the product",
     },
     {
-      url: `https://www.google.com/search?q=${encodeURIComponent(product + " review site:youtube.com")}`,
+      url: `https://duckduckgo.com/?q=${encodeURIComponent(product + " review site:youtube.com")}`,
       source_type: "youtube",
-      reason: "Google search for YouTube reviews and comments",
+      reason: "DuckDuckGo search for YouTube reviews and comments",
+    },
+    {
+      url: `https://duckduckgo.com/?q=${encodeURIComponent(product + " review site:amazon.com")}`,
+      source_type: "amazon",
+      reason: "DuckDuckGo search for Amazon customer reviews",
+    },
+    {
+      url: `https://duckduckgo.com/?q=${encodeURIComponent(product + " review site:trustpilot.com")}`,
+      source_type: "trustpilot",
+      reason: "DuckDuckGo search for Trustpilot reviews",
     },
   ];
 
