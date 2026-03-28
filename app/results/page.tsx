@@ -25,6 +25,7 @@ function AgentCard({ agent }: { agent: AgentState }) {
     amazon: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200",
     forum: "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200",
     youtube: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
+    youtube_2: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
     other: "bg-slate-100 text-slate-700 dark:bg-slate-700/70 dark:text-slate-200",
   };
 

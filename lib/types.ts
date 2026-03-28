@@ -1,6 +1,6 @@
 export interface TargetUrl {
   url: string;
-  source_type: "reddit" | "trustpilot" | "forum" | "youtube" | "amazon" | "other";
+  source_type: "reddit" | "trustpilot" | "forum" | "youtube" | "youtube_2" | "amazon" | "other";
   reason: string;
 }
 

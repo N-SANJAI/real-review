@@ -13,7 +13,12 @@ export async function POST(req: NextRequest) {
     {
       url: `https://www.youtube.com/results?search_query=${encodeURIComponent(product + " review")}`,
       source_type: "youtube",
-      reason: "YouTube search for video reviews and comments",
+      reason: "YouTube video #1 — comments from the first result",
+    },
+    {
+      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(product + " review")}`,
+      source_type: "youtube_2",
+      reason: "YouTube video #2 — comments from the second result for less bias",
     },
     {
       url: `https://www.amazon.com/s?k=${encodeURIComponent(product)}`,

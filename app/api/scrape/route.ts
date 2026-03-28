@@ -6,11 +6,12 @@ export const maxDuration = 300;
 
 function buildGoal(product: string, sourceType: string): string {
   const goals: Record<string, string> = {
-    reddit: `DuckDuckGo search results for "${product}" reviews on Reddit are shown. Click the most relevant Reddit thread. Read the post and top comments. Collect up to 15 real user opinions about ${product}. Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
-    youtube: `YouTube search results for "${product} review" are shown. Click the most relevant review video. Scroll down to the comments section and collect up to 15 real user comments about ${product}. Return JSON: { "reviews": ["comment 1", "comment 2", ...] }`,
-    amazon: `Amazon search results for "${product}" are shown. Click the most relevant product listing. Scroll to the "Customer reviews" section. Collect up to 15 real customer reviews. Return JSON: { "reviews": [{"text": "review text", "rating": 4}, ...] }`,
-    trustpilot: `Trustpilot search results for "${product}" are shown. Click the most relevant company or product page. Collect up to 15 user reviews visible on the page. Return JSON: { "reviews": [{"text": "review text", "rating": 3}, ...] }`,
-    other: `Find and click the most relevant review of "${product}". Extract key opinions, pros, cons, and scores. Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
+    reddit: `You are on DuckDuckGo search results. Step 1: Click the first Reddit link. Step 2: Read the post title and comments on the thread. Step 3: Extract up to 30 distinct user opinions about "${product}". Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
+    youtube: `You are on YouTube search results for "${product} review". Step 1: Click the FIRST video result. Step 2: Scroll down past the video to the comments section. Step 3: Read and extract up to 10 user comments about "${product}". Return JSON: { "reviews": ["comment 1", "comment 2", ...] }`,
+    youtube_2: `You are on YouTube search results for "${product} review". Step 1: Click the SECOND video result (skip the first one). Step 2: Scroll down past the video to the comments section. Step 3: Read and extract up to 10 user comments about "${product}". Return JSON: { "reviews": ["comment 1", "comment 2", ...] }`,
+    amazon: `You are on Amazon search results. Step 1: Click the first product that matches "${product}". Step 2: On the product page, scroll down and look for a link or section that says "See customer reviews" or "customer ratings". Click it if it is a link. Step 3: Read the visible customer review texts and star ratings. Extract up to 10 reviews. Return JSON: { "reviews": [{"text": "review text", "rating": 4}, ...] }`,
+    trustpilot: `You are on Trustpilot search results. Step 1: Click the first matching result for "${product}". Step 2: On the company page, read the visible reviews. Extract up to 10 reviews with their star ratings. Return JSON: { "reviews": [{"text": "review text", "rating": 3}, ...] }`,
+    other: `Find and click the most relevant review of "${product}". Extract key opinions. Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
   };
   return goals[sourceType] || goals.other;
 }
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
 
       const t0 = Date.now();
       const sources: (ScrapedSource | null)[] = new Array(urls.length).fill(null);
-      const concurrency = 3;
+      const concurrency = 5;
       const queue = urls.map((u, i) => ({ u, i }));
 
       async function worker() {
