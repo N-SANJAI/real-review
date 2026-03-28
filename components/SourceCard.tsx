@@ -9,18 +9,22 @@ interface Props {
 
 const sourceLabels: Record<string, string> = {
   reddit: "Reddit",
+  reddit_2: "Reddit #2",
   trustpilot: "Trustpilot",
   forum: "Forum",
   youtube: "YouTube",
+  youtube_2: "YouTube #2",
   twitter: "Twitter/X",
   other: "Web",
 };
 
 const sourceBadgeColors: Record<string, string> = {
   reddit: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-200",
+  reddit_2: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-200",
   trustpilot: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
   forum: "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200",
   youtube: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
+  youtube_2: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
   twitter: "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200",
   other: "bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-200",
 };
@@ -31,6 +35,7 @@ export default function SourceCard({ source }: Props) {
   const failed = source.reviews.length === 0;
   const [sortBy, setSortBy] = useState<"top" | "bottom" | "newest" | "oldest">("top");
   const [searchTerm, setSearchTerm] = useState("");
+  const [showAllComments, setShowAllComments] = useState(false);
 
   const normalizedReviews = useMemo<ReviewEntry[]>(
     () =>
@@ -132,7 +137,7 @@ export default function SourceCard({ source }: Props) {
             <p className="text-xs text-slate-500 dark:text-slate-400">No comments match that filter.</p>
           ) : (
             <ul className="space-y-2.5">
-              {filteredAndSorted.slice(0, 5).map((review, i) => {
+              {(showAllComments ? filteredAndSorted : filteredAndSorted.slice(0, 5)).map((review, i) => {
                 const sentimentScore = scoreSentiment(review);
                 const sentimentStyle = getSentimentStyle(sentimentScore);
                 return (
@@ -144,8 +149,16 @@ export default function SourceCard({ source }: Props) {
                   {review.date && <p className="text-[11px] text-slate-500 dark:text-slate-400">{review.date}</p>}
                 </li>
               )})}
-              {filteredAndSorted.length > 5 && (
-                <li className="text-xs text-slate-500 dark:text-slate-400">+{filteredAndSorted.length - 5} more</li>
+              {filteredAndSorted.length > 5 && !showAllComments && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllComments(true)}
+                    className="text-xs text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-300"
+                  >
+                    +{filteredAndSorted.length - 5} more
+                  </button>
+                </li>
               )}
             </ul>
           )}

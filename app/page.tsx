@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import FishArrayLogo from "@/components/FishArrayLogo";
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -26,6 +27,7 @@ export default function Home() {
         <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-violet-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-white">
           Real insights · no paid fluff
         </p>
+        <FishArrayLogo className="mx-auto mb-4 h-16 w-auto max-w-[19rem]" />
         <h1 className="mb-3 bg-gradient-to-r from-cyan-600 via-blue-600 to-violet-600 bg-clip-text text-5xl font-black text-transparent sm:text-6xl">
           The Real Review
         </h1>
@@ -51,8 +53,15 @@ export default function Home() {
         </form>
 
         <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
-          Searches Reddit, Trustpilot, tech forums, and more in parallel.
+          Searches Reddit, YouTube, and more in parallel.
         </p>
+
+        <a
+          href="/compare"
+          className="mt-4 inline-block text-sm text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-300"
+        >
+          Or compare two products head-to-head →
+        </a>
       </div>
     </main>
   );

@@ -5,18 +5,8 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import ReportCard from "@/components/ReportCard";
 import SourceCard from "@/components/SourceCard";
 import PricingCard from "@/components/PricingCard";
-import { ReviewReport, ScrapedSource, PriceAnalysis } from "@/lib/types";
-
-interface AgentState {
-  index: number;
-  url: string;
-  source_type: string;
-  status: "queued" | "running" | "done" | "failed";
-  streaming_url?: string;
-  progress?: string;
-  progress_percent?: number;
-  source?: ScrapedSource;
-}
+import FishArrayLogo from "@/components/FishArrayLogo";
+import { ReviewReport, ScrapedSource, PriceAnalysis, AgentState } from "@/lib/types";
 
 function estimateProgressFromLog(message: string, previousPercent = 8): number {
   const text = message.toLowerCase();
@@ -45,10 +35,12 @@ function AgentCard({ agent }: { agent: AgentState }) {
 
   const badgeColor: Record<string, string> = {
     reddit: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-200",
+    reddit_2: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-200",
     trustpilot: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
     amazon: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200",
     forum: "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200",
     youtube: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
+    youtube_2: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
     twitter: "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200",
     other: "bg-slate-100 text-slate-700 dark:bg-slate-700/70 dark:text-slate-200",
   };
@@ -173,12 +165,43 @@ function ResultsContent() {
   const [pricingLoading, setPricingLoading] = useState(false);
   const [error, setError] = useState("");
   const started = useRef(false);
+  const doneCountRef = useRef(0);
+  const totalCountRef = useRef(0);
+  const fishPuns = useRef([
+    "Totally objective take: this product is o-fish-ally dramatic.",
+    "Shocking update: still searching for unbiased opinions in this sea of hot takes.",
+    "Fin fact: your patience level is now a certified deep-sea species.",
+    "The algorithm says this review thread is krilling your vibe.",
+    "Current status: swimming through comments so you don't have tuna-scroll forever.",
+    "We asked for clarity and got a whole school of suspiciously confident opinions.",
+  ]);
+  const [punBubble, setPunBubble] = useState<{ id: number; side: "left" | "right"; text: string; dodged: boolean } | null>(null);
+  const punIndex = useRef(0);
+
+  const sourceLabel: Record<string, string> = {
+    reddit: "Reddit", reddit_2: "Reddit #2",
+    youtube: "YouTube", youtube_2: "YouTube #2",
+    trustpilot: "Trustpilot", twitter: "Twitter/X",
+    other: "Web",
+  };
 
   useEffect(() => {
     if (!query || started.current) return;
     started.current = true;
     runPipeline();
   }, [query]);
+
+  useEffect(() => {
+    const spawnPun = () => {
+      const text = fishPuns.current[punIndex.current % fishPuns.current.length];
+      const side = punIndex.current % 2 === 0 ? "left" : "right";
+      setPunBubble({ id: Date.now(), side, text, dodged: false });
+      punIndex.current += 1;
+    };
+    spawnPun();
+    const interval = setInterval(spawnPun, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const runPipeline = async () => {
     try {
@@ -192,6 +215,9 @@ function ResultsContent() {
       });
       const { urls }: { urls: { url: string; source_type: string }[] } = await urlRes.json();
 
+      totalCountRef.current = urls.length;
+      doneCountRef.current = 0;
+
       setAgents(
         urls.map((u, i) => ({
           index: i,
@@ -202,7 +228,7 @@ function ResultsContent() {
       );
 
       setStatus("scraping");
-      setStatusMessage(`Running ${urls.length} browser agents...`);
+      setStatusMessage(`Scraping reviews... (0/${urls.length} complete)`);
 
       const scrapeRes = await fetch("/api/scrape", {
         method: "POST",
@@ -235,6 +261,8 @@ function ResultsContent() {
           const { type, index } = event as { type: string; index?: number };
 
           if (type === "agent_started" && index !== undefined) {
+            const agentType = urls[index]?.source_type || "source";
+            setStatusMessage(`Scraping ${sourceLabel[agentType] ?? agentType}... (${doneCountRef.current}/${totalCountRef.current} complete)`);
             setAgents((prev) =>
               prev.map((a) => (a.index === index ? { ...a, status: "running", progress_percent: 8 } : a))
             );
@@ -263,6 +291,14 @@ function ResultsContent() {
           if (type === "agent_done" && index !== undefined) {
             const source = event.source as ScrapedSource;
             const failed = !!event.error;
+            doneCountRef.current += 1;
+            const agentType = urls[index]?.source_type || "source";
+            const reviewCount = failed ? 0 : (source?.reviews?.length ?? 0);
+            setStatusMessage(
+              doneCountRef.current >= totalCountRef.current
+                ? "All agents finished! Generating verdict..."
+                : `${sourceLabel[agentType] ?? agentType} done (${reviewCount} reviews) — ${doneCountRef.current}/${totalCountRef.current} complete`
+            );
             setAgents((prev) =>
               prev.map((a) =>
                 a.index === index
@@ -280,31 +316,35 @@ function ResultsContent() {
       }
 
       setStatus("synthesizing");
-      setStatusMessage("Synthesizing the real verdict...");
+      setStatusMessage("Generating verdict...");
 
-      // Run OpenAI synthesis and pricing fetch in parallel
-      // (synthesis is just an OpenAI call, pricing uses TinyFish — no conflict)
+      // Fire synthesis and pricing in parallel, but don't block verdict on pricing
       setPricingLoading(true);
-      const [reportRes, fetchedPrices] = await Promise.all([
-        fetch("/api/synthesize", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ product: query, sources: finalSources }),
-        }).then((r) => r.json()),
-        fetch("/api/pricing", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ product: query }),
-        })
-          .then((r) => r.json())
-          .then((d) => d.prices)
-          .catch(() => null),
-      ]);
+
+      // Start pricing in background — it updates independently
+      const pricingPromise = fetch("/api/pricing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product: query }),
+      })
+        .then((r) => r.json())
+        .then((d) => d.prices)
+        .catch(() => null);
+
+      // Wait for synthesis only — show verdict immediately
+      const reportRes = await fetch("/api/synthesize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product: query, sources: finalSources }),
+      }).then((r) => r.json());
 
       const finalReport: ReviewReport = reportRes.report;
       setReport(finalReport);
+      setStatus("done");
+      setStatusMessage("Fetching Singapore prices...");
 
-      // Run price analysis if we got prices
+      // Now wait for pricing (already running in background)
+      const fetchedPrices = await pricingPromise;
       if (fetchedPrices) {
         try {
           const analysisRes = await fetch("/api/price-analysis", {
@@ -319,9 +359,6 @@ function ResultsContent() {
         }
       }
       setPricingLoading(false);
-
-      setStatus("done");
-      setAgents([]);
     } catch (err) {
       console.error(err);
       setError("Something went wrong. Please try again.");
@@ -329,18 +366,39 @@ function ResultsContent() {
     }
   };
 
+  const doneCount = agents.filter((a) => a.status === "done" || a.status === "failed").length;
   const activeAgents = agents.filter((a) => a.status !== "queued");
   const queuedCount = agents.filter((a) => a.status === "queued").length;
+  const allAgentsDone = agents.length > 0 && doneCount === agents.length;
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-12">
+    <main className="relative mx-auto max-w-5xl px-4 py-12">
+      {punBubble && (
+        <aside
+          className={`pun-bubble ${punBubble.side === "left" ? "left-2 lg:-left-16" : "right-2 lg:-right-16"} ${
+            punBubble.dodged ? (punBubble.side === "left" ? "pun-bubble-dodge-left" : "pun-bubble-dodge-right") : ""
+          }`}
+          key={punBubble.id}
+        >
+          <p>{punBubble.text}</p>
+          <button
+            type="button"
+            aria-label="Close fish pun"
+            onClick={() => setPunBubble((prev) => (prev ? { ...prev, dodged: true } : prev))}
+            className="pun-bubble-close"
+          >
+            ×
+          </button>
+        </aside>
+      )}
       <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-xl shadow-cyan-100/60 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-cyan-950/30">
         <a href="/" className="mb-5 inline-block text-sm text-slate-500 hover:text-cyan-700 dark:text-slate-400 dark:hover:text-cyan-300">← Back</a>
+        <FishArrayLogo className="mb-3 h-14 w-auto max-w-[17rem]" />
         <h1 className="mb-2 text-3xl font-bold text-slate-900 dark:text-slate-50">
           Reviews for <span className="bg-gradient-to-r from-cyan-500 to-violet-600 bg-clip-text text-transparent">{query}</span>
         </h1>
 
-        {status !== "done" && status !== "error" && (
+        {(status !== "done" && status !== "error") && (
           <div className="mt-6 flex items-center gap-3 text-slate-600 dark:text-slate-300">
             <div className="h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
             <span>{statusMessage}</span>
@@ -360,9 +418,21 @@ function ResultsContent() {
           </div>
         )}
 
-        {activeAgents.length > 0 && (
+        {status === "done" && pricingLoading && (
+          <div className="mt-6 flex items-center gap-3 text-slate-600 dark:text-slate-300">
+            <div className="h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
+            <span>Fetching Singapore prices...</span>
+          </div>
+        )}
+
+        {activeAgents.length > 0 && !allAgentsDone && (
           <div className="mt-6 space-y-3">
-            <h2 className="text-sm font-medium uppercase tracking-wider text-violet-600 dark:text-violet-300">Live Browser Agents</h2>
+            <h2 className="text-sm font-medium uppercase tracking-wider text-violet-600 dark:text-violet-300">
+              Live Browser Agents
+              <span className="ml-2 text-xs font-normal normal-case text-slate-500 dark:text-slate-400">
+                {doneCount}/{agents.length} complete
+              </span>
+            </h2>
             <div className="grid gap-3">
               {activeAgents.map((agent) => (
                 <AgentCard key={agent.index} agent={agent} />
