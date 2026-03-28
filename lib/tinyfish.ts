@@ -81,7 +81,17 @@ export async function runTinyfishAgent(
         "Content-Type": "application/json",
         "X-API-Key": TINYFISH_API_KEY,
       },
-      body: JSON.stringify({ url, goal, browser_profile: "lite" }),
+      body: JSON.stringify({
+        url,
+        goal,
+        browser_profile: "lite",
+        capture_config: {
+          elements: false,
+          snapshots: false,
+          screenshots: false,
+          recording: false,
+        },
+      }),
       signal: controller.signal,
     });
 

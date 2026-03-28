@@ -6,9 +6,11 @@ export const maxDuration = 300;
 
 function buildGoal(product: string, sourceType: string): string {
   const goals: Record<string, string> = {
-    reddit: `Google results for "${product}" reviews on Reddit are shown. Click the most relevant Reddit thread. Read through the post and comments, and collect real user opinions, complaints, and praise about ${product}. Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
-    youtube: `Google results for "${product}" reviews on YouTube are shown. Click the most relevant YouTube video. Scroll down to the comments section and collect real user opinions and experiences about ${product}. Return JSON: { "reviews": ["comment 1", "comment 2", ...] }`,
-    other: `Find and click the most relevant review of "${product}". Extract key opinions, pros, cons, and any scores. Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
+    reddit: `DuckDuckGo search results for "${product}" reviews on Reddit are shown. Click the most relevant Reddit thread. Read the post and top comments. Collect up to 15 real user opinions about ${product}. Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
+    youtube: `DuckDuckGo search results for "${product}" reviews on YouTube are shown. Click the most relevant YouTube video. Scroll to the comments section. Collect up to 15 real user comments about ${product}. Return JSON: { "reviews": ["comment 1", "comment 2", ...] }`,
+    amazon: `DuckDuckGo search results for "${product}" reviews on Amazon are shown. Click the most relevant Amazon product page. Scroll to the customer reviews section. Collect up to 15 real customer reviews about ${product}. Return JSON: { "reviews": ["review 1", "review 2", ...] }`,
+    trustpilot: `DuckDuckGo search results for "${product}" reviews on Trustpilot are shown. Click the most relevant Trustpilot page. Collect up to 15 real user reviews about ${product}. Return JSON: { "reviews": ["review 1", "review 2", ...] }`,
+    other: `Find and click the most relevant review of "${product}". Extract key opinions, pros, cons, and scores. Return JSON: { "reviews": ["opinion 1", "opinion 2", ...] }`,
   };
   return goals[sourceType] || goals.other;
 }
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
 
       const t0 = Date.now();
       const sources: (ScrapedSource | null)[] = new Array(urls.length).fill(null);
-      const concurrency = 1;
+      const concurrency = 3;
       const queue = urls.map((u, i) => ({ u, i }));
 
       async function worker() {
