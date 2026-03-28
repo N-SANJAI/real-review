@@ -68,6 +68,7 @@ export async function runTinyfishAgent(
   goal: string,
   onEvent?: TinyfishEventCallback
 ) {
+
   let currentRunId: string | null = null;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 300_000); // 5 min per agent
@@ -75,23 +76,24 @@ export async function runTinyfishAgent(
   console.log(`[tinyfish] START  ${url}`);
 
   try {
+    const body: Record<string, unknown> = {
+      url,
+      goal,
+      browser_profile: "lite",
+      capture_config: {
+        elements: false,
+        snapshots: false,
+        screenshots: false,
+        recording: false,
+      },
+    };
     const response = await fetch(`${TINYFISH_BASE}/automation/run-sse`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-API-Key": TINYFISH_API_KEY,
       },
-      body: JSON.stringify({
-        url,
-        goal,
-        browser_profile: "lite",
-        capture_config: {
-          elements: false,
-          snapshots: false,
-          screenshots: false,
-          recording: false,
-        },
-      }),
+      body: JSON.stringify(body),
       signal: controller.signal,
     });
 

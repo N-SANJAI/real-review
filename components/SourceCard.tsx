@@ -12,7 +12,7 @@ const sourceLabels: Record<string, string> = {
   trustpilot: "Trustpilot",
   forum: "Forum",
   youtube: "YouTube",
-  youtube_2: "YouTube #2",
+  twitter: "Twitter/X",
   other: "Web",
 };
 
@@ -21,7 +21,7 @@ const sourceBadgeColors: Record<string, string> = {
   trustpilot: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
   forum: "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200",
   youtube: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
-  youtube_2: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
+  twitter: "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200",
   other: "bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-200",
 };
 

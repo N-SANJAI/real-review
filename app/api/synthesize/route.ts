@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         content: `You are a product review analyst. Analyze real user reviews and produce an honest, balanced verdict. Return valid JSON matching this exact schema:
 {
   "verdict": "1-2 sentence overall verdict",
-  "score": <number 1-10>,
+  "score": <number 1-100>,
   "pros": ["up to 6 key positives"],
   "cons": ["up to 6 key negatives"],
   "red_flags": ["any serious concerns like safety issues, fake reviews, or scams — empty array if none"],
@@ -67,7 +67,7 @@ Be specific — cite actual patterns from the reviews, not generic statements. I
     const json = JSON.parse(raw);
     parsed = {
       verdict: json.verdict ?? `Review analysis for ${product}.`,
-      score: Math.min(10, Math.max(1, Number(json.score) || 5)),
+      score: Math.min(100, Math.max(1, Number(json.score) || 50)),
       pros: Array.isArray(json.pros) ? json.pros.slice(0, 6) : [],
       cons: Array.isArray(json.cons) ? json.cons.slice(0, 6) : [],
       red_flags: Array.isArray(json.red_flags) ? json.red_flags : [],
@@ -76,7 +76,7 @@ Be specific — cite actual patterns from the reviews, not generic statements. I
   } catch {
     parsed = {
       verdict: `Could not parse AI analysis for ${product}.`,
-      score: 5,
+      score: 50,
       pros: [],
       cons: [],
       red_flags: [],

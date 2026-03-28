@@ -7,9 +7,9 @@ interface Props {
 
 export default function ReportCard({ report, product }: Props) {
   const scoreColor =
-    report.score >= 8
+    report.score >= 75
       ? "text-emerald-500 dark:text-emerald-300"
-      : report.score >= 6
+      : report.score >= 50
       ? "text-amber-500 dark:text-amber-300"
       : "text-rose-500 dark:text-rose-300";
 
@@ -23,7 +23,7 @@ export default function ReportCard({ report, product }: Props) {
         </div>
         <div className="shrink-0 rounded-xl bg-slate-100 px-4 py-3 text-center dark:bg-slate-800">
           <p className={`text-5xl font-bold ${scoreColor}`}>{report.score}</p>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">/ 10</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">/ 100</p>
         </div>
       </div>
 
